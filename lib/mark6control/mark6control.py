@@ -185,7 +185,11 @@ class Mark6():
 			self.scans.append(scan)
 			
 			
-		
+	def getScanByName(self, scanName):
+		for scan in self.scans:
+			if scan.name == scanName.strip():
+				return scan
+		return None
 		
 
 	def readSlotInfo(self):
@@ -195,6 +199,10 @@ class Mark6():
 			ret = self.sendCommand("mstat?%d" % (slotId+1))
 			module.parseMstatResponse(ret)
 			self.slots[slotId] = module
+
+	def getRecordingState(self):
+		ret = self.sendCommand("record?")
+		return ret.fields[0]
 			
 
 		
