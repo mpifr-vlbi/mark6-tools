@@ -5,6 +5,9 @@ import atexit
 
 class Mark6Exception(Exception):
 	pass
+
+class Mark6CommandError (Exception):
+	pass
 	
 class Mark6():
 	def __init__(self, host, port, timeout=5):
@@ -25,21 +28,37 @@ class Mark6():
 			raise Mark6Exception("Failed to connect to %s on port %d." % (self.host, self.port))
 
 
-	def send(self, command):
-
-		self.socket.settimeout(0.0000000000000000000001)
+	def sendCommand(self, command):
+		'''
+		send command to cplane
+		'''
+		
+		command = command.strip()
+		# add closing semicolon if not present yet
+		if not command[-1] == ";":
+			command += ";"
+		# add newline
+		command += "\n"
+	
 		try:
-			rv = self.socket.send(command + ";\n")
+			rv = self.socket.send(command)
+			if rv <= 0:
+				raise Mark6Exception()
+			ret = self.__getResponse()
 		except:
 			raise Mark6Exception("An error in the communication to %s has occured" % (self.host))
+
+		return ret
 		
-		if rv <= 0:
-			print "Error"
 			
 
-	def receive(self):
+	def __getResponse(self):
+		'''	
+		Fetch response of the last issued command from cplane
+		'''
+
 		ret = self.socket.recv(1024)
-		print ret
+		return ret
 	
 	def cleanup(self):
 
@@ -52,8 +71,8 @@ if __name__ == "__main__":
 	mark6 = Mark6("192.168.0.33", 14242)
 	try:
 		mark6.connect()
-		mark6.send("mstata?all")
-		mark6.receive()
+		ret = mark6.sendCommand("mstat?all;")
+		print ret
 	except Exception as e:
 		print e.message
 
