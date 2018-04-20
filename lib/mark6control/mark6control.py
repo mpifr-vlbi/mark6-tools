@@ -159,10 +159,17 @@ class Mark6():
 		Fetch response of the last issued command from cplane
 		'''
 
-		ret = self.socket.recv(1024)
+	        BUFF_SIZE = 4096 
+	        data = b''
+	        while True:
+			part = self.socket.recv(BUFF_SIZE)
+			data += part
+			if len(part) < BUFF_SIZE:
+			    # either 0 or end of data
+			    break
+	        return data
 		
 
-		return ret
 	
 	def __cleanup(self):
 
@@ -177,6 +184,7 @@ class Mark6():
 		
 		self.scans = []
 		for i in range (1, len(ret.fields), 4):  # skip the group ref field (first)
+			
 			scan = Mark6Scan()
 			scan.number = int(ret.fields[i])
 			scan.name = ret.fields[i+1].strip()
