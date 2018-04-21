@@ -164,9 +164,11 @@ class Mark6():
 	        while True:
 			part = self.socket.recv(BUFF_SIZE)
 			data += part
-			if len(part) < BUFF_SIZE:
-			    # either 0 or end of data
-			    break
+			if part.strip().endswith(';'):
+				break
+			#if len(part) < BUFF_SIZE:
+			#    # either 0 or end of data
+			#    break
 	        return data
 		
 
@@ -182,15 +184,24 @@ class Mark6():
 
 		ret = self.sendCommand("list?")
 		
+		
 		self.scans = []
+
+		# empty modules
+		if int(ret.fields[1]) == 0:
+			return
+		
 		for i in range (1, len(ret.fields), 4):  # skip the group ref field (first)
 			
-			scan = Mark6Scan()
-			scan.number = int(ret.fields[i])
-			scan.name = ret.fields[i+1].strip()
-			scan.size = float(ret.fields[i+2])
-			scan.dateCreated = datetime.strptime (ret.fields[i+3].strip(), "%Yy%jd%Hh%Mm%Ss")
-			self.scans.append(scan)
+			try:
+				scan = Mark6Scan()
+				scan.number = int(ret.fields[i])
+				scan.name = ret.fields[i+1].strip()
+				scan.size = float(ret.fields[i+2])
+				scan.dateCreated = datetime.strptime (ret.fields[i+3].strip(), "%Yy%jd%Hh%Mm%Ss")
+				self.scans.append(scan)
+			except:
+				pass	
 			
 			
 	def getScanByName(self, scanName):
@@ -210,7 +221,7 @@ class Mark6():
 
 	def getRecordingState(self):
 		ret = self.sendCommand("record?")
-		return ret.fields[0]
+		return ret.fields[0], ret.fields[2]
 			
 
 		
