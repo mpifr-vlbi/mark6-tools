@@ -70,7 +70,6 @@ class Mark6Module():
 		Note that this works only for single slot mstat commands e.g. mstat?1
 		and will currently fail for mstat?all calls
 		'''
-		print response.fields[0]
 		if '-' not in response.fields[0]: 
 			self.group = response.fields[0]
 
@@ -277,7 +276,6 @@ class Mark6():
 			streams.append(stream)
 
 
-		print streams
 		return (streams)
 			
 			
