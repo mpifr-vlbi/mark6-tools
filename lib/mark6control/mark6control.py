@@ -38,9 +38,12 @@ class CplaneResponse():
 		self.baseCommand = response[1:pos]
 
 		tokens = response[pos+1:].split(":")
-		self.cplaneCode = tokens[0]
-		self.dplaneCode = tokens[1]
-		self.fields = tokens[2:]
+		self.cplaneCode = tokens[0].strip()
+		self.dplaneCode = tokens[1].strip()
+		for token in tokens[2:]:
+			self.fields.append(token.strip())
+	#	self.fields = tokens[2:]
+		
 		
 
 class Mark6Module():
@@ -53,8 +56,9 @@ class Mark6Module():
 		self.datarate = -1
 		self.numDisksDiscovered = -1
 		self.numDisksRegistered = -1
-		self.capacityRemaining = -1
-		self.groupCapacity = -1
+		self.capacityRemainingGB = 0
+		self.freePercentage = 0.0
+		self.groupCapacityGB = 0
 		self.status1 = ""
 		self.status2 = ""
 		self.type = ""
@@ -66,21 +70,36 @@ class Mark6Module():
 		Note that this works only for single slot mstat commands e.g. mstat?1
 		and will currently fail for mstat?all calls
 		'''
-		self.group = response.fields[0].strip()
+		print response.fields[0]
+		if '-' not in response.fields[0]: 
+			self.group = response.fields[0]
+
 		self.slot = int(response.fields[1])
 		self.eMSN = response.fields[2].strip()
 		self.numDisksDiscovered = int(response.fields[3])
 		self.numDisksRegistered = int(response.fields[4])
-		self.capacityRemaining = int(response.fields[5])
-		self.groupCapacity = int(response.fields[6])
+		if response.fields[5].strip() != "-":
+			self.capacityRemainingGB = int(response.fields[5].strip())
+		self.groupCapacityGB = int(response.fields[6])
 		self.status1 = response.fields[7].strip()
 		self.status2 = response.fields[8].strip()
 		self.type = response.fields[9].strip()
 		
-		tokens = self.eMSN.split("/")
-		self.vsn = tokens[0]
-		self.capacity = tokens[1]
-		self.datarate = tokens[2]
+		if self.capacityRemainingGB > 0:
+			self.freePercentage =  float(self.capacityRemainingGB) / float(self.groupCapacityGB) * 100.0
+
+		if self.eMSN != "-":
+			tokens = self.eMSN.split("/")
+			self.vsn = tokens[0]
+			self.capacity = tokens[1]
+			self.datarate = tokens[2]
+		else:
+			tokens = ""
+                        self.vsn = "unknown"
+                        self.capacity = ""
+                        self.datarate = ""
+
+
 
 
 class Mark6Scan():
@@ -90,7 +109,6 @@ class Mark6Scan():
 		self.size = 0.0
 		self.dateCreated = None
 
-		
 		
 	
 		
@@ -106,6 +124,7 @@ class Mark6():
 		self.commMethod = commMethod
 		self.slots = [None,None,None,None]
 		self.scans = []
+		self.recordingState = {'state': "unknown", 'scanNo': -1, 'scanName': "unknown"}
 
 		if self.commMethod not in legalCommMethods:
 			raise Mark6Exception("commMethod must be one of %s" % (str(legalCommMethods)))
@@ -159,17 +178,14 @@ class Mark6():
 		Fetch response of the last issued command from cplane
 		'''
 
-	        BUFF_SIZE = 4096 
-	        data = b''
-	        while True:
+		BUFF_SIZE= 4096 
+		data = b''
+		while True:
 			part = self.socket.recv(BUFF_SIZE)
 			data += part
 			if part.strip().endswith(';'):
 				break
-			#if len(part) < BUFF_SIZE:
-			#    # either 0 or end of data
-			#    break
-	        return data
+		return data
 		
 
 	
@@ -220,11 +236,51 @@ class Mark6():
 			self.slots[slotId] = module
 
 	def getRecordingState(self):
-		ret = self.sendCommand("record?")
-		return ret.fields[0], ret.fields[2]
-			
+		"""
+		Get the current recording state by issuing a record? query
 
-		
+		Returns:
+			dict: (state, scanNo, scanName)
+		"""
+
+		ret = self.sendCommand("record?")
+		self.recordingState['state'] = ret.fields[0]
+		self.recordingState['scanNo'] = ret.fields[1]
+		self.recordingState['scanName'] = ret.fields[2]
+
+		return (self.recordingState)
+
+	def getInputStreams(self):
+		"""
+		Get the defined input streams by issuing a input_stream? query
+
+		Returns:
+			dict: (state, scanNo, scanName)
+		"""
+		streams = []
+		stream = {'label': "", 'format': "", 'payloadSize': 0, 'payloadOffset': 0, 'psnOffset': 0, 'interface': "", 'filterAdress': "", 'port': 0, 'slots': ""}
+
+		ret = self.sendCommand("input_stream?")
+
+		for i in range (0, len(ret.fields), 9):  
+			stream = {}
+			stream['label'] = ret.fields[i]
+			stream['format'] =  ret.fields[i+1]
+			stream['payloadSize'] =  int(ret.fields[i+2])
+			stream['payloadOffset'] =  int(ret.fields[i+3])
+			stream['psnOffset'] =  int(ret.fields[i+4])
+			stream['interface'] =  ret.fields[i+5] 
+			stream['filterAdress'] =  ret.fields[i+6] 
+			stream['port'] =  int(ret.fields[i+7])
+			stream['slots'] =  ret.fields[i+8] 
+
+			streams.append(stream)
+
+
+		print streams
+		return (streams)
+			
+			
 
 if __name__ == "__main__":
 
@@ -233,9 +289,9 @@ if __name__ == "__main__":
 	mark6.connect()
 	mark6.readScanList()
 	for scan in mark6.scans:
-		print vars(scan)
+		print (vars(scan))
 	
 	mark6.readSlotInfo()
 	for slot in mark6.slots:
-		print vars(slot)
+		print (vars(slot))
 	
