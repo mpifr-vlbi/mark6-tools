@@ -202,21 +202,32 @@ class Mark6():
 		
 		self.scans = []
 
+
 		# empty modules
 		if int(ret.fields[1]) == 0:
 			return
 		
+		skip = 0
 		for i in range (1, len(ret.fields), 4):  # skip the group ref field (first)
+
 			
+			if i+skip == len(ret.fields):
+				break
+			scan = Mark6Scan()
+			scan.number = int(ret.fields[i+skip])
+			scan.name = ret.fields[i+1+skip].strip()
+			scan.size = float(ret.fields[i+2+skip])
 			try:
-				scan = Mark6Scan()
-				scan.number = int(ret.fields[i])
-				scan.name = ret.fields[i+1].strip()
-				scan.size = float(ret.fields[i+2])
-				scan.dateCreated = datetime.strptime (ret.fields[i+3].strip(), "%Yy%jd%Hh%Mm%Ss")
-				self.scans.append(scan)
-			except:
-				pass	
+				scan.dateCreated = datetime.strptime (ret.fields[i+3+skip].strip(), "%Yy%jd%Hh%Mm%Ss")
+			except :
+				# deal with cplane bug of corrupted scan dates when the 
+				# first scan on the module is empty
+				# Fri Apr 20 14:46:44 2018
+				dateStr = "{}:{}:{}".format(ret.fields[i+3+skip], ret.fields[i+4+skip],ret.fields[i+5+skip])
+				
+				scan.dateCreated = datetime.strptime (dateStr,"%a %b %d %H:%M:%S %Y")
+				skip += 2
+			self.scans.append(scan)
 			
 			
 	def getScanByName(self, scanName):
